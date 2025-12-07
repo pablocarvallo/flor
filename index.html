@@ -156,8 +156,24 @@
             const normalTransactions = transactionsThisMonth.filter(t => t.type === 'normal').sort((a, b) => new Date(b.date) - new Date(a.date));
             const debtPayments = transactionsThisMonth.filter(t => t.type === 'debt').sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            const itauTransactions = transactionsThisMonth.filter(t => t.account === 'Itaú');
-            const bchTransactions = transactionsThisMonth.filter(t => t.account === 'BCH');
+            // Función de ordenamiento corregida: "mes" primero
+            const sortWithMesFirst = (list) => {
+                return list.sort((a, b) => {
+                    const isMesA = a.detail.trim().toLowerCase() === 'mes';
+                    const isMesB = b.detail.trim().toLowerCase() === 'mes';
+                    
+                    // Si A es 'mes' y B no, A va primero (-1)
+                    if (isMesA && !isMesB) return -1;
+                    // Si A no es 'mes' y B si, B va primero (1)
+                    if (!isMesA && isMesB) return 1;
+                    
+                    // Si ambos son iguales en prioridad (ambos 'mes' o ninguno), ordenar por fecha descendente
+                    return new Date(b.date) - new Date(a.date);
+                });
+            };
+
+            const itauTransactions = sortWithMesFirst(transactionsThisMonth.filter(t => t.account === 'Itaú'));
+            const bchTransactions = sortWithMesFirst(transactionsThisMonth.filter(t => t.account === 'BCH'));
 
             const totalItau = itauTransactions.reduce((acc, curr) => acc + curr.amount, 0);
             const totalBch = bchTransactions.reduce((acc, curr) => acc + curr.amount, 0);
