@@ -137,6 +137,7 @@
             const [instAmount, setInstAmount] = useState('');
             const [instDetail, setInstDetail] = useState('');
             const [instTotal, setInstTotal] = useState('');
+            const [instPaid, setInstPaid] = useState(''); // Nuevo estado para cuotas pagadas
             const [instAccount, setInstAccount] = useState('BCH');
 
             // --- Persistencia ---
@@ -274,20 +275,31 @@
             const addInstallmentDebt = () => {
                 if (!instAmount || !instDetail || !instTotal) return;
                 
+                // Calcular cuota inicial
+                const initialPaid = instPaid ? parseInt(instPaid) : 0;
+                const total = parseInt(instTotal);
+
+                // Validación simple
+                if (initialPaid > total) {
+                    alert('Las cuotas pagadas no pueden ser mayores al total.');
+                    return;
+                }
+
                 const newDebt = {
                     id: Date.now(),
                     amount: parseInt(instAmount),
                     detail: instDetail,
-                    totalQuotas: parseInt(instTotal),
-                    currentQuota: 0,
+                    totalQuotas: total,
+                    currentQuota: initialPaid, // Inicia en lo que ya se pagó
                     account: instAccount,
-                    active: true
+                    active: initialPaid < total
                 };
 
                 setInstallments([...installments, newDebt]);
                 setInstAmount('');
                 setInstDetail('');
                 setInstTotal('');
+                setInstPaid(''); // Reset campo
             };
 
             const payInstallmentQuota = (id) => {
@@ -488,21 +500,29 @@
                                         <span className="absolute left-4 top-4 text-slate-400 text-lg">$</span>
                                         <input type="number" inputMode="numeric" value={instAmount} onChange={(e) => setInstAmount(e.target.value)} className="ios-input pl-8 font-semibold text-slate-800" placeholder="0"/>
                                     </div>
+                                    
                                     <div className="flex gap-4 mb-4">
                                         <div className="w-1/2">
-                                            <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Nº Cuotas</label>
+                                            <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Total Cuotas</label>
                                             <input type="number" inputMode="numeric" value={instTotal} onChange={(e) => setInstTotal(e.target.value)} className="ios-input" placeholder="Ej: 12"/>
                                         </div>
                                         <div className="w-1/2">
-                                            <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Banco</label>
-                                            <select value={instAccount} onChange={(e) => setInstAccount(e.target.value)} className="ios-input appearance-none bg-white">
-                                                <option value="BCH">BCH</option>
-                                                <option value="Itaú">Itaú</option>
-                                            </select>
+                                            <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Ya Pagadas</label>
+                                            <input type="number" inputMode="numeric" value={instPaid} onChange={(e) => setInstPaid(e.target.value)} className="ios-input" placeholder="Ej: 3"/>
                                         </div>
                                     </div>
+                                    
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Banco</label>
+                                        <select value={instAccount} onChange={(e) => setInstAccount(e.target.value)} className="ios-input appearance-none bg-white">
+                                            <option value="BCH">BCH</option>
+                                            <option value="Itaú">Itaú</option>
+                                        </select>
+                                    </div>
+
                                     <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Detalle</label>
                                     <input type="text" value={instDetail} onChange={(e) => setInstDetail(e.target.value)} className="ios-input mb-6" placeholder="Ej: Compra Computador"/>
+                                    
                                     <button onClick={addInstallmentDebt} disabled={!instAmount || !instDetail || !instTotal} className="w-full bg-teal-600 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg ios-btn disabled:opacity-50">Guardar Deuda</button>
                                 </div>
                                 <div className="space-y-4">
