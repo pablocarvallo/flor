@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Centro de Finanzas Colaborativas</title>
+    
+    <!-- Configuración PWA para iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finanzas Pro">
+    
+    <!-- Icono y Manifest (simulados) -->
+    <link rel="apple-touch-icon" href="https://placehold.co/180x180/007AFF/FFFFFF?text=FP">
+    <link rel="icon" type="image/png" href="https://placehold.co/180x180/007AFF/FFFFFF?text=FP">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- HTML2Canvas para capturas -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <style>
+        /* Estilos base iOS 18 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F2F2F7; /* iOS System Gray 6 */
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        /* Ocultar scrollbar pero permitir scroll */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Haptic Feedback (simulación) y Animación de Presión */
+        .haptic-btn {
+            transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s;
+        }
+        .haptic-btn:active {
+            transform: scale(0.96);
+            /* Simula un feedback táctil */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06), inset 0 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Diseño de Tarjeta de Cristal (iOS Glass) */
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        /* Input de Estilo Nativo */
+        .ios-input {
+            background-color: #FFFFFF;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 17px;
+            border: 1px solid #E5E5EA;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .ios-input:focus {
+            border-color: #007AFF;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONOS PROFESIONALES (Simulando SF Symbols) ---
+        const DashboardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>;
+        const CreditCardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>;
+        const ArrowDownUpIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>;
+        const CalendarCheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>;
+        const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+        const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>;
+        const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+        const XIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+
+
+        // --- UTILIDADES ---
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
+        };
+
+        const getCurrentMonthYear = () => {
+            const date = new Date();
+            return date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        };
+
+        // --- COMPONENTE MODAL DE CONFIRMACIÓN CENTRALIZADO ---
+        const ConfirmModal = ({ show, title, message, onConfirm, onCancel, confirmText = "Confirmar", confirmClass = "bg-red-500" }) => {
+            if (!show) return null;
+
+            return (
+                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="glass-card w-full max-w-sm p-6 shadow-2xl animate-fade-in-up">
+                        <div className="flex flex-col items-center text-center">
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">{title}</h3>
+                            <p className="text-slate-500 text-sm mb-6">{message}</p>
+                            <div className="flex gap-3 w-full">
+                                <button 
+                                    onClick={onCancel}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold haptic-btn"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={onConfirm}
+                                    className={`flex-1 py-3 text-white rounded-xl font-semibold haptic-btn ${confirmClass}`}
+                                >
+                                    {confirmText}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- COMPONENTE PRINCIPAL ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('summary');
+            const [showReport, setShowReport] = useState(false);
+            
+            // --- ESTADO DE LA APLICACIÓN ---
+            const [transactions, setTransactions] = useState(() => {
+                const saved = localStorage.getItem('transactions_pro');
+                return saved ? JSON.parse(saved) : [];
+            });
+            const [scheduledPayments, setScheduledPayments] = useState(() => {
+                const saved = localStorage.getItem('scheduled_payments');
+                return saved ? JSON.parse(saved) : [];
+            });
+            const [debtState, setDebtState] = useState(() => {
+                const saved = localStorage.getItem('debt_state');
+                return saved ? JSON.parse(saved) : { balance: 0, originalTotal: 0 };
+            });
+
+            // Formularios
+            const [amount, setAmount] = useState('');
+            const [detail, setDetail] = useState('');
+            const [account, setAccount] = useState('Itaú');
+            const [debtPayment, setDebtPayment] = useState('');
+            const [debtDetail, setDebtDetail] = useState('');
+            const [initialDebtInput, setInitialDebtInput] = useState('');
+            const [isSettingDebt, setIsSettingDebt] = useState(false);
+
+            // Modal
+            const [deleteModal, setDeleteModal] = useState({ show: false, item: null, type: null });
+            const [showBudgetModal, setShowBudgetModal] = useState(false);
+
+            // --- PERSISTENCIA ---
+            useEffect(() => {
+                localStorage.setItem('transactions_pro', JSON.stringify(transactions));
+            }, [transactions]);
+
+            useEffect(() => {
+                localStorage.setItem('debt_state', JSON.stringify(debtState));
+            }, [debtState]);
+
+            useEffect(() => {
+                localStorage.setItem('scheduled_payments', JSON.stringify(scheduledPayments));
+            }, [scheduledPayments]);
+
+            // --- LÓGICA DE TRANSACCIONES ---
+
+            // Añadir transacción de liquidación
+            const addTransaction = () => {
+                if (!amount || !detail) return;
+                const newTransaction = {
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    amount: parseInt(amount),
+                    detail,
+                    account,
+                    type: 'normal'
+                };
+                setTransactions([...transactions, newTransaction]);
+                setAmount('');
+                setDetail('');
+            };
+
+            // Pagar deuda
+            const payDebt = () => {
+                if (!debtPayment || !debtDetail) return;
+                const payAmount = parseInt(debtPayment);
+                
+                const newBalance = debtState.balance - payAmount;
+                setDebtState(prev => ({ ...prev, balance: newBalance }));
+
+                const newTransaction = {
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    amount: payAmount,
+                    detail: debtDetail,
+                    account: 'BCH', 
+                    type: 'debt',
+                };
+                setTransactions([...transactions, newTransaction]);
+
+                setDebtPayment('');
+                setDebtDetail('');
+            };
+
+            // Establecer deuda inicial
+            const handleSetDebt = () => {
+                if (initialDebtInput) {
+                    const initialAmount = parseInt(initialDebtInput);
+                    setDebtState({ balance: initialAmount, originalTotal: initialAmount });
+                    setInitialDebtInput('');
+                    setIsSettingDebt(false);
+                }
+            };
+            
+            // --- LÓGICA DE ELIMINACIÓN ---
+            const initiateDelete = (item, type) => {
+                setDeleteModal({ show: true, item, type });
+            };
+
+            // Función añadida para cerrar el modal sin confirmar la eliminación
+            const cancelDelete = () => {
+                setDeleteModal({ show: false, item: null, type: null });
+            };
+
+            const confirmDelete = () => {
+                const { item, type } = deleteModal;
+                if (!item) return;
+
+                if (type === 'normal') {
+                    // Eliminar transacción normal
+                    setTransactions(transactions.filter(t => t.id !== item.id));
+                } else if (type === 'debt') {
+                    // Eliminar abono de deuda y devolver el monto al saldo
+                    setTransactions(transactions.filter(t => t.id !== item.id));
+                    setDebtState(prev => ({ ...prev, balance: prev.balance + item.amount }));
+                } else if (type === 'scheduled') {
+                    // Eliminar pago programado
+                    setScheduledPayments(scheduledPayments.filter(p => p.id !== item.id));
+                }
+
+                setDeleteModal({ show: false, item: null, type: null });
+            };
+
+            // Resetear Deuda Total
+            const resetDebt = () => {
+                setDebtState({ balance: 0, originalTotal: 0 });
+                setTransactions(transactions.filter(t => t.type !== 'debt'));
+                setIsSettingDebt(true); 
+            };
+
+
+            // --- LÓGICA DE PROGRAMACIÓN DE PAGOS ---
+            const [scheduledForm, setScheduledForm] = useState({
+                sAmount: '',
+                sDetail: '',
+                sFrequency: 'monthly',
+                sNextDate: new Date().toISOString().substring(0, 10), // YYYY-MM-DD
+            });
+
+            const addScheduledPayment = () => {
+                if (!scheduledForm.sAmount || !scheduledForm.sDetail || !scheduledForm.sNextDate) return;
+                
+                const newScheduled = {
+                    id: Date.now(),
+                    amount: parseInt(scheduledForm.sAmount),
+                    detail: scheduledForm.sDetail,
+                    frequency: scheduledForm.sFrequency,
+                    nextDate: scheduledForm.sNextDate,
+                };
+
+                setScheduledPayments([...scheduledPayments, newScheduled]);
+                setScheduledForm({
+                    sAmount: '',
+                    sDetail: '',
+                    sFrequency: 'monthly',
+                    sNextDate: new Date().toISOString().substring(0, 10),
+                });
+            };
+
+            // --- CÁLCULOS PRINCIPALES ---
+            
+            const transactionsThisMonth = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                const now = new Date();
+                return tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+            });
+
+            // Transacciones Normales
+            const normalTransactions = transactionsThisMonth
+                .filter(t => t.type === 'normal')
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const totalItaú = normalTransactions.filter(t => t.account === 'Itaú').reduce((acc, curr) => acc + curr.amount, 0);
+            const totalBCH = normalTransactions.filter(t => t.account === 'BCH').reduce((acc, curr) => acc + curr.amount, 0);
+            const totalLiquidacion = totalItaú + totalBCH;
+
+            // Transacciones de Deuda
+            const totalAbonosDeuda = transactions.filter(t => t.type === 'debt').reduce((acc, curr) => acc + curr.amount, 0);
+            const progressPercentage = debtState.originalTotal > 0 ? ((debtState.originalTotal - debtState.balance) / debtState.originalTotal) * 100 : 0;
+            const remainingPercentage = 100 - progressPercentage;
+
+            // Proyección de Flujo (Simulación Sencilla)
+            const scheduledMonthlyTotal = scheduledPayments
+                .filter(p => p.frequency === 'monthly' || new Date(p.nextDate).getMonth() === new Date().getMonth())
+                .reduce((acc, p) => acc + p.amount, 0);
+            
+            // --- SUB-COMPONENTE: PESTAÑA RESUMEN ---
+            const SummaryTab = () => (
+                <div className="space-y-6">
+                    {/* Tarjeta de Resumen Mensual */}
+                    <div className="glass-card p-6 shadow-xl border-blue-100/50">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-slate-800">Resumen de {getCurrentMonthYear()}</h2>
+                            <button onClick={() => setShowBudgetModal(true)} className="text-blue-600 text-sm font-semibold haptic-btn">
+                                Presupuesto AI
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <SummaryLine 
+                                title="Liquidación (Pagos Realizados)" 
+                                amount={totalLiquidacion} 
+                                icon={<CreditCardIcon />} 
+                                color="text-green-500"
+                            />
+                            <SummaryLine 
+                                title="Abonos a Deuda" 
+                                amount={totalAbonosDeuda} 
+                                icon={<ArrowDownUpIcon />} 
+                                color="text-indigo-500"
+                            />
+                            <SummaryLine 
+                                title="Pagos Programados (Próx.)" 
+                                amount={scheduledMonthlyTotal} 
+                                icon={<CalendarCheckIcon />} 
+                                color="text-orange-500"
+                            />
+                        </div>
+                        <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
+                            <span className="text-sm font-bold text-slate-500">TOTAL GASTO PROYECTADO</span>
+                            <span className="text-2xl font-bold text-slate-900">{formatCurrency(totalLiquidacion + scheduledMonthlyTotal)}</span>
+                        </div>
+                    </div>
+                    
+                    {/* Indicador de Deuda Rápida */}
+                    <div className="glass-card p-4">
+                        <h3 className="text-lg font-bold text-slate-800 mb-2">Deuda Pendiente</h3>
+                        <div className="flex justify-between items-center">
+                            <span className="text-3xl font-extrabold text-indigo-600">{formatCurrency(debtState.balance)}</span>
+                            <span className="text-sm text-slate-500">
+                                {debtState.originalTotal > 0 ? `Queda ${remainingPercentage.toFixed(1)}%` : 'Sin saldo inicial'}
+                            </span>
+                        </div>
+                        {debtState.originalTotal > 0 && (
+                            <div className="w-full bg-indigo-100 rounded-full h-2 mt-2">
+                                <div 
+                                    className="bg-indigo-600 h-2 rounded-full transition-all duration-700 ease-out"
+                                    style={{ width: `${progressPercentage}%` }}
+                                ></div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Acciones Rápidas */}
+                    <div className="flex gap-4">
+                        <QuickActionButton icon={<PlusIcon />} label="Nuevo Pago" onClick={() => setActiveTab('settlement')} color="bg-blue-600" />
+                        <QuickActionButton icon={<ArrowDownUpIcon />} label="Abonar Deuda" onClick={() => setActiveTab('debt')} color="bg-indigo-600" />
+                        <QuickActionButton icon={<ClockIcon />} label="Programar" onClick={() => setActiveTab('scheduled')} color="bg-orange-500" />
+                    </div>
+
+                    <div className="h-10"></div>
+                </div>
+            );
+
+            // --- SUB-COMPONENTE: LÍNEA DE RESUMEN ---
+            const SummaryLine = ({ title, amount, icon, color }) => (
+                <div className="flex justify-between items-center py-2">
+                    <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${color.replace('text', 'bg-')}/10 ${color}`}>
+                            {icon}
+                        </div>
+                        <span className="text-base text-slate-700">{title}</span>
+                    </div>
+                    <span className={`font-semibold text-lg ${color}`}>{formatCurrency(amount)}</span>
+                </div>
+            );
+
+            // --- SUB-COMPONENTE: BOTÓN DE ACCIÓN RÁPIDA ---
+            const QuickActionButton = ({ icon, label, onClick, color }) => (
+                <button 
+                    onClick={onClick}
+                    className={`flex-1 ${color} text-white p-4 rounded-xl flex flex-col items-center justify-center shadow-lg haptic-btn`}
+                >
+                    <div className="w-6 h-6">{icon}</div>
+                    <span className="text-xs font-semibold mt-1">{label}</span>
+                </button>
+            );
+
+            // --- SUB-COMPONENTE: PESTAÑA PROGRAMADOS ---
+            const ScheduledTab = () => (
+                <div className="space-y-6">
+                    {/* Formulario de Programación */}
+                    <div className="glass-card p-5">
+                        <h3 className="text-xl font-bold text-slate-800 mb-4">Programar Nuevo Pago</h3>
+                        
+                        <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Monto</label>
+                        <input 
+                            type="number" 
+                            inputMode="numeric"
+                            value={scheduledForm.sAmount}
+                            onChange={(e) => setScheduledForm({...scheduledForm, sAmount: e.target.value})}
+                            className="ios-input mb-4"
+                            placeholder="Monto fijo"
+                        />
+
+                        <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Detalle</label>
+                        <input 
+                            type="text" 
+                            value={scheduledForm.sDetail}
+                            onChange={(e) => setScheduledForm({...scheduledForm, sDetail: e.target.value})}
+                            className="ios-input mb-4"
+                            placeholder="Ej: Netflix, Arriendo, Crédito"
+                        />
+                        
+                        <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Frecuencia</label>
+                        <select 
+                            value={scheduledForm.sFrequency}
+                            onChange={(e) => setScheduledForm({...scheduledForm, sFrequency: e.target.value})}
+                            className="ios-input mb-4"
+                        >
+                            <option value="monthly">Mensual</option>
+                            <option value="biweekly">Quincenal</option>
+                            <option value="once">Una vez (este mes)</option>
+                        </select>
+                        
+                        <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Próxima Fecha de Pago</label>
+                        <input 
+                            type="date" 
+                            value={scheduledForm.sNextDate}
+                            onChange={(e) => setScheduledForm({...scheduledForm, sNextDate: e.target.value})}
+                            className="ios-input mb-6"
+                        />
+
+                        <button 
+                            onClick={addScheduledPayment}
+                            disabled={!scheduledForm.sAmount || !scheduledForm.sDetail}
+                            className="w-full bg-orange-500 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg haptic-btn disabled:opacity-50"
+                        >
+                            Programar Pago
+                        </button>
+                    </div>
+
+                    {/* Lista de Pagos Programados */}
+                    <div className="glass-card p-5">
+                        <h3 className="text-xl font-bold text-slate-800 mb-4">Próximos Pagos ({scheduledPayments.length})</h3>
+                        <ul className="space-y-3">
+                            {scheduledPayments.map(p => (
+                                <li key={p.id} className="flex justify-between items-center text-sm border-b border-gray-100 pb-3 last:border-b-0">
+                                    <div className="flex flex-col">
+                                        <span className="text-gray-700 font-medium">{p.detail}</span>
+                                        <span className="text-xs font-semibold text-orange-500">
+                                            {p.frequency === 'monthly' ? 'Mensual' : p.frequency === 'biweekly' ? 'Quincenal' : 'Única vez'} | {new Date(p.nextDate).toLocaleDateString('es-ES')}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-lg text-orange-600">{formatCurrency(p.amount)}</span>
+                                        <button 
+                                            onClick={() => initiateDelete(p, 'scheduled')} 
+                                            className="text-red-400 p-2 hover:bg-red-50 rounded-full transition-colors"
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                            {scheduledPayments.length === 0 && (
+                                <li className="text-center text-gray-400 italic py-4">No hay pagos programados.</li>
+                            )}
+                        </ul>
+                    </div>
+                    <div className="h-10"></div>
+                </div>
+            );
+
+            // --- SUB-COMPONENTE: PESTAÑA DEUDA (Ligeramente modificada para usar debtState) ---
+            const DebtTab = () => (
+                <div className="space-y-6">
+                    {/* Tarjeta de Saldo Actual */}
+                    <div className="glass-card p-6 shadow-xl border-indigo-100/50">
+                        <h2 className="text-2xl font-bold text-indigo-700 mb-1">DEUDA PENDIENTE</h2>
+                        <div className="text-5xl font-extrabold tracking-tight mb-4 text-indigo-600">
+                            {formatCurrency(debtState.balance)}
+                        </div>
+                        
+                        {/* Barra de Progreso */}
+                        {debtState.originalTotal > 0 && (
+                            <>
+                                <div className="w-full bg-indigo-100 rounded-full h-3 mb-2 overflow-hidden">
+                                    <div 
+                                        className="bg-indigo-600 h-3 rounded-full transition-all duration-700 ease-out"
+                                        style={{ width: `${progressPercentage}%` }}
+                                    ></div>
+                                </div>
+                                <div className="flex justify-between text-sm text-slate-500 font-medium">
+                                    <span>Pagado: {progressPercentage.toFixed(1)}%</span>
+                                    <span>Original: {formatCurrency(debtState.originalTotal)}</span>
+                                </div>
+                            </>
+                        )}
+
+                        {debtState.originalTotal === 0 && !isSettingDebt && (
+                            <button 
+                                onClick={() => setIsSettingDebt(true)}
+                                className="text-sm bg-indigo-600/10 text-indigo-600 px-3 py-1 rounded-full font-semibold haptic-btn mt-3"
+                            >
+                                Establecer Saldo Inicial
+                            </button>
+                        )}
+                    </div>
+
+                    {isSettingDebt && (
+                        <div className="glass-card p-5 animate-fade-in-up">
+                            <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Nuevo Saldo Inicial</label>
+                            <input 
+                                type="number" 
+                                value={initialDebtInput}
+                                onChange={(e) => setInitialDebtInput(e.target.value)}
+                                className="ios-input mb-4"
+                                placeholder="Monto total de la deuda"
+                            />
+                            <button 
+                                onClick={handleSetDebt}
+                                className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-semibold haptic-btn"
+                            >
+                                Guardar y Reiniciar
+                            </button>
+                            <button 
+                                onClick={() => setIsSettingDebt(false)}
+                                className="w-full mt-2 text-slate-500 py-2 rounded-2xl font-semibold haptic-btn"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="glass-card p-5">
+                        <h3 className="text-xl font-bold text-slate-800 mb-4">Registrar Abono</h3>
+                        <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Monto a abonar</label>
+                        <input 
+                            type="number" 
+                            inputMode="numeric"
+                            value={debtPayment}
+                            onChange={(e) => setDebtPayment(e.target.value)}
+                            className="ios-input mb-4"
+                            placeholder="0"
+                        />
+                        <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Detalle</label>
+                        <input 
+                            type="text" 
+                            value={debtDetail}
+                            onChange={(e) => setDebtDetail(e.target.value)}
+                            className="ios-input mb-6"
+                            placeholder="Ej: Pago Extra, Abono Cuota"
+                        />
+
+                        <button 
+                            onClick={payDebt}
+                            disabled={!debtPayment || !debtDetail || debtState.balance <= 0 || isSettingDebt}
+                            className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg haptic-btn disabled:opacity-50"
+                        >
+                            Registrar Abono
+                        </button>
+                    </div>
+
+                    {/* Historial de Abonos */}
+                    <div className="glass-card p-5">
+                        <h3 className="text-xl font-bold text-slate-800 mb-4">Historial de Abonos</h3>
+                        <ul className="space-y-3">
+                            {transactions.filter(t => t.type === 'debt').sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
+                                <li key={t.id} className="flex justify-between items-center text-sm border-b border-gray-100 pb-3 last:border-b-0">
+                                    <div className="flex flex-col">
+                                        <span className="text-gray-700 font-medium">{t.detail}</span>
+                                        <span className="text-xs font-semibold text-slate-400">
+                                            {new Date(t.date).toLocaleDateString('es-ES')}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-lg text-green-600">-{formatCurrency(t.amount)}</span>
+                                        <button 
+                                            onClick={() => initiateDelete(t, 'debt')} 
+                                            className="text-red-400 p-2 hover:bg-red-50 rounded-full transition-colors haptic-btn"
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                            {transactions.filter(t => t.type === 'debt').length === 0 && (
+                                <li className="text-center text-gray-400 italic py-4">Aún no hay abonos registrados.</li>
+                            )}
+                        </ul>
+                    </div>
+
+                    <div className="flex justify-center">
+                        <button 
+                            onClick={() => initiateDelete({id: 'reset', amount: 0, detail: 'Reiniciar Deuda'}, 'debt_reset')}
+                            className="text-red-500 flex items-center space-x-2 px-4 py-2 rounded-full bg-red-50 text-sm font-medium haptic-btn"
+                        >
+                            <TrashIcon size={16} />
+                            <span>Reiniciar Deuda Total</span>
+                        </button>
+                    </div>
+
+                    <div className="h-10"></div>
+                </div>
+            );
+            
+            // --- RENDERIZADO PRINCIPAL ---
+            return (
+                <div className="h-screen flex flex-col bg-slate-50 relative">
+                    
+                    {/* Header Estilo iOS Pro */}
+                    <div className="pt-14 pb-4 px-6 bg-white/70 backdrop-blur-xl sticky top-0 z-20 border-b border-slate-200 flex justify-between items-center">
+                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                            {activeTab === 'summary' && 'Dashboard'}
+                            {activeTab === 'settlement' && 'Liquidación'}
+                            {activeTab === 'debt' && 'Deudas'}
+                            {activeTab === 'scheduled' && 'Programados'}
+                        </h1>
+                        {activeTab === 'settlement' && (
+                            <button 
+                                onClick={() => setShowReport(true)}
+                                className="text-blue-600 font-semibold text-lg haptic-btn"
+                            >
+                                Reporte
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Contenido Principal */}
+                    <div className="flex-1 overflow-y-auto no-scrollbar pb-32 px-4 pt-6">
+                        {activeTab === 'summary' && <SummaryTab />}
+                        {activeTab === 'settlement' && (
+                            <div className="space-y-6">
+                                {/* Formulario de Liquidación */}
+                                <div className="glass-card p-5">
+                                    <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Monto de Transferencia</label>
+                                    <div className="relative mb-4">
+                                        <span className="absolute left-4 top-4 text-slate-400 text-lg font-semibold">$</span>
+                                        <input 
+                                            type="number" 
+                                            inputMode="numeric"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            className="ios-input pl-8 font-extrabold text-slate-800"
+                                            placeholder="0"
+                                        />
+                                    </div>
+
+                                    <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Destino</label>
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                        <button 
+                                            onClick={() => setAccount('Itaú')}
+                                            className={`py-3 rounded-xl font-medium transition-all haptic-btn ${account === 'Itaú' ? 'bg-orange-500 text-white shadow-md' : 'bg-slate-100 text-slate-500'}`}
+                                        >
+                                            Itaú
+                                        </button>
+                                        <button 
+                                            onClick={() => setAccount('BCH')}
+                                            className={`py-3 rounded-xl font-medium transition-all haptic-btn ${account === 'BCH' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-500'}`}
+                                        >
+                                            BCH
+                                        </button>
+                                    </div>
+
+                                    <label className="block text-sm font-medium text-slate-500 mb-2 ml-1">Concepto</label>
+                                    <input 
+                                        type="text" 
+                                        value={detail}
+                                        onChange={(e) => setDetail(e.target.value)}
+                                        className="ios-input mb-6"
+                                        placeholder="Ej: Compras Supermercado, Gasto Personal"
+                                    />
+
+                                    <button 
+                                        onClick={addTransaction}
+                                        disabled={!amount || !detail}
+                                        className="w-full bg-blue-600 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg shadow-blue-300 haptic-btn disabled:opacity-50"
+                                    >
+                                        Registrar Transferencia
+                                    </button>
+                                </div>
+                                
+                                {/* Historial de Pagos del Mes */}
+                                <div className="glass-card p-5">
+                                    <h3 className="text-xl font-bold text-slate-800 mb-4">Transferencias Registradas ({getCurrentMonthYear()})</h3>
+                                    <ul className="space-y-3">
+                                        {normalTransactions.map(t => (
+                                            <li key={t.id} className="flex justify-between items-center text-sm border-b border-gray-100 pb-3 last:border-b-0">
+                                                <div className="flex flex-col">
+                                                    <span className="text-gray-700 font-medium">{t.detail}</span>
+                                                    <span className={`text-xs font-semibold ${t.account === 'Itaú' ? 'text-orange-500' : 'text-blue-600'}`}>
+                                                        {t.account}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-lg">{formatCurrency(t.amount)}</span>
+                                                    <button 
+                                                        onClick={() => initiateDelete(t, 'normal')} 
+                                                        className="text-red-400 p-2 hover:bg-red-50 rounded-full transition-colors haptic-btn"
+                                                    >
+                                                        <TrashIcon />
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                        {normalTransactions.length === 0 && (
+                                            <li className="text-center text-gray-400 italic py-4">Aún no hay registros este mes.</li>
+                                        )}
+                                    </ul>
+                                </div>
+                                <div className="h-10"></div>
+                            </div>
+                        )}
+                        {activeTab === 'debt' && <DebtTab />}
+                        {activeTab === 'scheduled' && <ScheduledTab />}
+                    </div>
+
+                    {/* Modal de Presupuesto AI */}
+                    <ConfirmModal 
+                        show={showBudgetModal}
+                        title="Presupuesto Inteligente"
+                        message="El motor de AI (Hypothetical API) sugiere que tu presupuesto de liquidación para este mes sea de $X (basado en el historial y pagos programados). ¿Quieres aplicar este presupuesto como límite?"
+                        onConfirm={() => { alert('Presupuesto aplicado (Simulación)'); setShowBudgetModal(false); }}
+                        onCancel={() => setShowBudgetModal(false)}
+                        confirmText="Aplicar Límite"
+                        confirmClass="bg-green-500"
+                    />
+
+                    {/* Modal de Confirmación de Borrado */}
+                    <ConfirmModal 
+                        show={deleteModal.show}
+                        title={deleteModal.type === 'debt_reset' ? "¿Reiniciar Deuda Total?" : "¿Eliminar Registro?"}
+                        message={
+                            deleteModal.type === 'debt' 
+                                ? "Este abono se revertirá, sumando el monto de vuelta a la deuda pendiente."
+                                : deleteModal.type === 'debt_reset' 
+                                ? "Se borrará todo el historial de deuda, restableciendo el saldo a $0 y el total original a $0. Esta acción es irreversible."
+                                : "Esta acción eliminará la transacción permanentemente."
+                        }
+                        onConfirm={deleteModal.type === 'debt_reset' ? () => { resetDebt(); cancelDelete(); } : confirmDelete}
+                        onCancel={cancelDelete}
+                        confirmText={deleteModal.type === 'debt_reset' ? "Reiniciar Deuda" : "Eliminar"}
+                        confirmClass="bg-red-500"
+                    />
+                    
+                    {/* Barra de Navegación Inferior Estilo iOS Pro */}
+                    <div className="fixed bottom-0 left-0 right-0 z-30">
+                        <div className="h-8 bg-gradient-to-t from-[#F2F2F7] to-transparent pointer-events-none"></div>
+                        <div className="glass-card border-t border-slate-200/50 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-3 px-6 flex justify-around items-center rounded-t-3xl shadow-2xl shadow-slate-300">
+                            
+                            <NavButton icon={<DashboardIcon />} label="Resumen" tab="summary" activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavButton icon={<CreditCardIcon />} label="Liquidación" tab="settlement" activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavButton icon={<ArrowDownUpIcon />} label="Deudas" tab="debt" activeTab={activeTab} setActiveTab={setActiveTab} />
+                            <NavButton icon={<CalendarCheckIcon />} label="Programados" tab="scheduled" activeTab={activeTab} setActiveTab={setActiveTab} />
+                        </div>
+                    </div>
+
+                    {/* Modal de Reporte (se mantiene igual) */}
+                    {showReport && (
+                        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+                            <div className="bg-white w-full max-w-md rounded-3xl max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl animate-slide-up">
+                                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-3xl">
+                                    <h3 className="font-bold text-lg text-gray-800">Reporte Mensual</h3>
+                                    <button onClick={() => setShowReport(false)} className="p-2 bg-gray-200 rounded-full text-gray-600 haptic-btn">
+                                        <XIcon size={20} />
+                                    </button>
+                                </div>
+                                
+                                <div className="p-8 bg-white text-slate-800">
+                                    <h2 className="text-2xl font-extrabold uppercase tracking-wide text-slate-900 mb-1 text-center">{getCurrentMonthYear()}</h2>
+                                    <p className="text-sm text-slate-400 text-center mb-8">Consolidado de Transferencias</p>
+
+                                    <div className="mb-6">
+                                        <div className="flex justify-between items-center mb-3 border-b-2 border-orange-100 pb-2">
+                                            <h3 className="font-bold text-orange-500 text-lg">Transferencias Itaú</h3>
+                                            <span className="text-xs font-semibold bg-orange-100 text-orange-600 px-2 py-1 rounded-lg">
+                                                Total: {formatCurrency(totalItaú)}
+                                            </span>
+                                        </div>
+                                        <ul className="space-y-3">
+                                            {normalTransactions.filter(t => t.account === 'Itaú').length === 0 && <li className="text-gray-400 italic text-sm">Sin movimientos</li>}
+                                            {normalTransactions.filter(t => t.account === 'Itaú').map(t => (
+                                                <li key={t.id} className="flex justify-between text-sm items-start">
+                                                    <span className="text-gray-600 max-w-[70%]">{t.detail}</span>
+                                                    <span className="font-medium text-gray-900">{formatCurrency(t.amount)}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex justify-between items-center mb-3 border-b-2 border-blue-100 pb-2">
+                                            <h3 className="font-bold text-blue-600 text-lg">Transferencias BCH</h3>
+                                            <span className="text-xs font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded-lg">
+                                                Total: {formatCurrency(totalBCH)}
+                                            </span>
+                                        </div>
+                                        <ul className="space-y-3">
+                                            {normalTransactions.filter(t => t.account === 'BCH').length === 0 && <li className="text-gray-400 italic text-sm">Sin movimientos</li>}
+                                            {normalTransactions.filter(t => t.account === 'BCH').map(t => (
+                                                <li key={t.id} className="flex justify-between text-sm items-start">
+                                                    <span className="text-gray-600 max-w-[70%]">{t.detail}</span>
+                                                    <span className="font-medium text-gray-900">{formatCurrency(t.amount)}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    <div className="mt-8 pt-4 border-t border-dashed border-gray-300 flex justify-between items-center">
+                                        <span className="text-sm font-bold text-gray-500">TOTAL LIQUIDADO</span>
+                                        <span className="text-2xl font-bold text-slate-900">{formatCurrency(totalItaú + totalBCH)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-gray-50 rounded-b-3xl">
+                                    <button 
+                                        onClick={() => alert('Compartir iniciado (Simulación)')}
+                                        className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold flex items-center justify-center space-x-2 haptic-btn shadow-blue-200 shadow-lg"
+                                    >
+                                        Compartir Resumen
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        // --- COMPONENTE DE NAVEGACIÓN ---
+        const NavButton = ({ icon, label, tab, activeTab, setActiveTab }) => {
+            const isActive = activeTab === tab;
+            const primaryColor = tab === 'summary' ? 'text-green-600' : tab === 'settlement' ? 'text-blue-600' : tab === 'debt' ? 'text-indigo-600' : 'text-orange-600';
+
+            return (
+                <button 
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex flex-col items-center space-y-1 transition-all duration-300 haptic-btn ${isActive ? primaryColor : 'text-slate-400'}`}
+                >
+                    <div className={`p-2 rounded-xl transition-all duration-300 ${isActive ? primaryColor.replace('text', 'bg') + '/10' : 'bg-transparent'}`}>
+                        {icon}
+                    </div>
+                    <span className="text-[10px] font-semibold">{label}</span>
+                </button>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
